@@ -816,9 +816,9 @@
   #endif
 
   #if defined(KNUTWURST_D1315)
-    #define DEFAULT_KP 24.00  // from M301 in D1315/output.log
-    #define DEFAULT_KI  0.40
-    #define DEFAULT_KD 20.00
+    #define DEFAULT_KP 8.46  // from M301 in D1315/output.log
+    #define DEFAULT_KI  1.64
+    #define DEFAULT_KD 10.91
   #endif
 #else
   #define BANG_MAX 255    // Limit hotend current while in bang-bang mode; 255=full current
@@ -1068,7 +1068,11 @@
   // Make delta curves from many straight lines (linear interpolation).
   // This is a trade-off between visible corners (not enough segments)
   // and processor overload (too many expensive sqrt calls).
-  #define DEFAULT_SEGMENTS_PER_SECOND 200
+  #if defined(KNUTWURST_D1315)
+    #define DEFAULT_SEGMENTS_PER_SECOND 120  // Reduced for ATmega2560 @ 16MHz to prevent stutter on curves
+  #else
+    #define DEFAULT_SEGMENTS_PER_SECOND 200
+  #endif
 
   // After homing move down to a height where XY movement is unconstrained
   //#define DELTA_HOME_TO_SAFE_ZONE
@@ -2581,7 +2585,11 @@
  */
 #define FILAMENT_RUNOUT_SENSOR
 #if ENABLED(FILAMENT_RUNOUT_SENSOR)
-  #define FIL_RUNOUT_ENABLED_DEFAULT true // Enable the sensor on startup. Override with M412 followed by M500.
+  #if defined(KNUTWURST_D1315)
+    #define FIL_RUNOUT_ENABLED_DEFAULT false // D1315: disable runout sensor by default (no sensor fitted)
+  #else
+    #define FIL_RUNOUT_ENABLED_DEFAULT true // Enable the sensor on startup. Override with M412 followed by M500.
+  #endif
   #define NUM_RUNOUT_SENSORS   1          // Number of sensors, up to one per extruder. Define a FIL_RUNOUT#_PIN for each.
 
   #define FIL_RUNOUT_STATE     HIGH       // Pin state indicating that filament is NOT present.
@@ -4108,7 +4116,11 @@
 // Temperature status LEDs that display the hotend and bed temperature.
 // If all hotends, bed temperature, and target temperature are under 54C
 // then the BLUE led is on. Otherwise the RED led is on. (1C hysteresis)
-//#define TEMP_STAT_LEDS
+#if defined(KNUTWURST_D1315)
+  #define TEMP_STAT_LEDS  // D1315: D1 LED (pin 13) = ON when hotend >55°C, OFF when cold
+#else
+  //#define TEMP_STAT_LEDS
+#endif
 
 // Support for BlinkM/CyzRgb
 //#define BLINKM
