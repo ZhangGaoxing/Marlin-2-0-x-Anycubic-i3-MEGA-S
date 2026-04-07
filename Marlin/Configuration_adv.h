@@ -561,7 +561,9 @@
  * The fan turns on automatically whenever any driver is enabled and turns
  * off (or reduces to idle speed) shortly after drivers are turned off.
  */
+#if !defined(KNUTWURST_D1315)  // D1315: RAMPS 1.4 has no dedicated controller fan pin
 #define USE_CONTROLLER_FAN
+#endif
 #if ENABLED(USE_CONTROLLER_FAN)
   //#define CONTROLLER_FAN_PIN -1           // Set a custom pin for the controller fan
   //#define CONTROLLER_FAN2_PIN -1          // Set a custom pin for second controller fan
@@ -867,7 +869,7 @@
 #ifdef Z2_DRIVER_TYPE
   //#define INVERT_Z2_VS_Z_DIR        // Z2 direction signal is the opposite of Z
 
-  #if DISABLED(KNUTWURST_ONE_Z_ENDSTOP)
+  #if DISABLED(KNUTWURST_ONE_Z_ENDSTOP) && !defined(KNUTWURST_D1315)
     #define Z_MULTI_ENDSTOPS          // Other Z axes have their own endstops
   #endif
   #if ENABLED(Z_MULTI_ENDSTOPS)

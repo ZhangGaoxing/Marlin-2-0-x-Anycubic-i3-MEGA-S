@@ -36,12 +36,13 @@
  * Advanced settings can be found in Configuration_adv.h
  */
 #define CONFIGURATION_H_VERSION 02010207
-#define ANYCUBIC_TOUCHSCREEN
-#define KNUTWURST_SPECIAL_MENU
-// #define ANYCUBIC_TFT_DEBUG
-// #define POWER_OUTAGE_TEST
-
-#define LCD_SERIAL_PORT 3
+#ifndef KNUTWURST_D1315
+  #define ANYCUBIC_TOUCHSCREEN
+  #define KNUTWURST_SPECIAL_MENU
+  // #define ANYCUBIC_TFT_DEBUG
+  // #define POWER_OUTAGE_TEST
+  #define LCD_SERIAL_PORT 3
+#endif
 
 /*
  * This feature is for debugging purpose only.
@@ -57,7 +58,7 @@
 #if ENABLED(KNUTWURST_CHIRON)
   #define TRIGORILLA_MAPPING_CHIRON
   #define NO_AUTO_ASSIGN_WARNING
-#else
+#elif !defined(KNUTWURST_D1315)
   #define TRIGORILLA_MAPPING_I3MEGA
   #define SWAP_Z_MOTORS
 #endif
@@ -652,7 +653,9 @@
 #define TEMP_SENSOR_5 0
 #define TEMP_SENSOR_6 0
 #define TEMP_SENSOR_7 0
-#if ANY(KNUTWURST_4MAXP2, KNUTWURST_4MAXP)
+#if defined(KNUTWURST_D1315)
+  #define TEMP_SENSOR_BED 0
+#elif ANY(KNUTWURST_4MAXP2, KNUTWURST_4MAXP)
   #define TEMP_SENSOR_BED 5
 #else
   #define TEMP_SENSOR_BED 1
@@ -811,6 +814,12 @@
     #define DEFAULT_KI  1.27
     #define DEFAULT_KD 67.55
   #endif
+
+  #if defined(KNUTWURST_D1315)
+    #define DEFAULT_KP 24.00  // from M301 in D1315/output.log
+    #define DEFAULT_KI  0.40
+    #define DEFAULT_KD 20.00
+  #endif
 #else
   #define BANG_MAX 255    // Limit hotend current while in bang-bang mode; 255=full current
 #endif
@@ -876,18 +885,7 @@
  */
 #define MAX_BED_POWER 255 // limits duty cycle to bed; 255=full current
 
-/**
- * PID Bed Heating
- *
- * The PID frequency will be the same as the extruder PWM.
- * If PID_dT is the default, and correct for the hardware/configuration, that means 7.689Hz,
- * which is fine for driving a square wave into a resistive load and does not significantly
- * impact FET heating. This also works fine on a Fotek SSR-10DA Solid State Relay into a 250W
- * heater. If your configuration is significantly different than this and you don't understand
- * the issues involved, don't use bed PID until someone else verifies that your hardware works.
- *
- * With this option disabled, bang-bang will be used. BED_LIMIT_SWITCHING enables hysteresis.
- */
+#if !defined(KNUTWURST_D1315) // D1315 has no heated bed
 #define PIDTEMPBED
 
 #if ENABLED(PIDTEMPBED)
@@ -926,6 +924,7 @@
 #else
   //#define BED_LIMIT_SWITCHING   // Keep the bed temperature within BED_HYSTERESIS of the target
 #endif
+#endif // !KNUTWURST_D1315 (no heated bed)
 
 //===========================================================================
 //==================== PID > Chamber Temperature Control ====================
@@ -1060,6 +1059,9 @@
 // @section delta
 
 // Enable for DELTA kinematics and configure below
+#if defined(KNUTWURST_D1315)
+  #define DELTA
+#endif
 //#define DELTA
 #if ENABLED(DELTA)
 
@@ -1077,7 +1079,11 @@
   //#define DELTA_CALIBRATION_MENU
 
   // G33 Delta Auto-Calibration. Enable EEPROM_SETTINGS to store results.
-  //#define DELTA_AUTO_CALIBRATION
+  #if defined(KNUTWURST_D1315)
+    //#define DELTA_AUTO_CALIBRATION      // Requires probe or LCD — use M665/M666 via host
+  #else
+    //#define DELTA_AUTO_CALIBRATION
+  #endif
 
   #if ENABLED(DELTA_AUTO_CALIBRATION)
     // Default number of probe points : n*n (1 -> 7)
@@ -1090,21 +1096,37 @@
   #endif
 
   // Print surface diameter/2 minus unreachable space (avoid collisions with vertical towers).
-  #define DELTA_PRINTABLE_RADIUS 140.0    // (mm)
-
-  // Maximum reachable area
-  #define DELTA_MAX_RADIUS       140.0    // (mm)
+  #if defined(KNUTWURST_D1315)
+    #define DELTA_PRINTABLE_RADIUS  67.0  // (mm) D1315 conservative printable radius
+    #define DELTA_MAX_RADIUS        67.0  // (mm) D1315 physical max radius (matches DELTA_RADIUS)
+  #else
+    #define DELTA_PRINTABLE_RADIUS 140.0  // (mm)
+    #define DELTA_MAX_RADIUS       140.0  // (mm)
+  #endif
 
   // Center-to-center distance of the holes in the diagonal push rods.
-  #define DELTA_DIAGONAL_ROD 250.0        // (mm)
+  #if defined(KNUTWURST_D1315)
+    // Measured value: 150mm (ball-centre to ball-centre)
+    #define DELTA_DIAGONAL_ROD     150.0  // (mm)
+  #else
+    #define DELTA_DIAGONAL_ROD 250.0      // (mm)
+  #endif
 
   // Distance between bed and nozzle Z home position
-  #define DELTA_HEIGHT 250.00             // (mm) Get this value from G33 auto calibrate
+  #if defined(KNUTWURST_D1315)
+    #define DELTA_HEIGHT           170.0  // (mm) calibrated: nozzle-to-bed at home; empirically 170 for D1315
+  #else
+    #define DELTA_HEIGHT 250.00           // (mm) Get this value from G33 auto calibrate
+  #endif
 
   #define DELTA_ENDSTOP_ADJ { 0.0, 0.0, 0.0 } // (mm) Get these values from G33 auto calibrate
 
   // Horizontal distance bridged by diagonal push rods when effector is centered.
-  #define DELTA_RADIUS 124.0              // (mm) Get this value from G33 auto calibrate
+  #if defined(KNUTWURST_D1315)
+    #define DELTA_RADIUS            75.0  // (mm) empirically verified via M665 R67; Repetier rostockRadius=67
+  #else
+    #define DELTA_RADIUS 124.0            // (mm) Get this value from G33 auto calibrate
+  #endif
 
   // Trim adjustments for individual towers
   // tower angle corrections for X and Y tower / rotate XYZ so Z tower angle = 0
@@ -1212,12 +1234,17 @@
 //#define USE_UMIN_PLUG
 //#define USE_VMIN_PLUG
 //#define USE_WMIN_PLUG
-#if DISABLED(KNUTWURST_ONE_Z_ENDSTOP)
+#if defined(KNUTWURST_D1315) || DISABLED(KNUTWURST_ONE_Z_ENDSTOP)
   #define USE_XMAX_PLUG
 #endif
-//#define USE_YMAX_PLUG
-#if ENABLED(KNUTWURST_CHIRON)
-  // #define USE_ZMAX_PLUG
+#if defined(KNUTWURST_D1315)
+  #define USE_YMAX_PLUG  // Delta homes all axes to MAX
+  #define USE_ZMAX_PLUG
+#else
+  //#define USE_YMAX_PLUG
+  #if ENABLED(KNUTWURST_CHIRON)
+    // #define USE_ZMAX_PLUG
+  #endif
 #endif
 //#define USE_IMAX_PLUG
 //#define USE_JMAX_PLUG
@@ -1341,6 +1368,27 @@
   #define V_MAX_ENDSTOP_INVERTING false // Set to true to invert the logic of the endstop.
   #define W_MAX_ENDSTOP_INVERTING false // Set to true to invert the logic of the endstop.
   #define Z_MIN_PROBE_ENDSTOP_INVERTING false // Set to true to invert the logic of the probe.
+#elif defined(KNUTWURST_D1315)
+  // Delta: only MAX endstops used. NC switches with pullup: rest=LOW(open), trigger=HIGH.
+  #define X_MIN_ENDSTOP_INVERTING false
+  #define Y_MIN_ENDSTOP_INVERTING false
+  #define Z_MIN_ENDSTOP_INVERTING false
+  #define I_MIN_ENDSTOP_INVERTING false
+  #define J_MIN_ENDSTOP_INVERTING false
+  #define K_MIN_ENDSTOP_INVERTING false
+  #define U_MIN_ENDSTOP_INVERTING false
+  #define V_MIN_ENDSTOP_INVERTING false
+  #define W_MIN_ENDSTOP_INVERTING false
+  #define X_MAX_ENDSTOP_INVERTING true
+  #define Y_MAX_ENDSTOP_INVERTING true
+  #define Z_MAX_ENDSTOP_INVERTING true
+  #define I_MAX_ENDSTOP_INVERTING false
+  #define J_MAX_ENDSTOP_INVERTING false
+  #define K_MAX_ENDSTOP_INVERTING false
+  #define U_MAX_ENDSTOP_INVERTING false
+  #define V_MAX_ENDSTOP_INVERTING false
+  #define W_MAX_ENDSTOP_INVERTING false
+  #define Z_MIN_PROBE_ENDSTOP_INVERTING false
 #endif // if ANY(KNUTWURST_MEGA, KNUTWURST_MEGA_S, KNUTWURST_MEGA_P, KNUTWURST_4MAXP2, KNUTWURST_4MAXP)
 
 // Enable this feature if all enabled endstop pins are interrupt-capable.
@@ -1417,6 +1465,11 @@
   #define DEFAULT_AXIS_STEPS_PER_UNIT   { 100, 80, 800, 418 }
 #endif
 
+#if defined(KNUTWURST_D1315)
+  // From D1315/output.log M92: X100 Y100 Z100 E94.31
+  #define DEFAULT_AXIS_STEPS_PER_UNIT   { 100, 100, 100, 94.31 }
+#endif
+
 /**
  * Default Max Feed Rate (linear=mm/s, rotational=°/s)
  * Override with M203
@@ -1462,6 +1515,11 @@
   #define DEFAULT_MAX_FEEDRATE          { 150, 150, 20, 80 }
 #endif
 
+#if defined(KNUTWURST_D1315)
+  // From D1315/output.log M203: X200 Y200 Z200 E43
+  #define DEFAULT_MAX_FEEDRATE          { 200, 200, 200, 43 }
+#endif
+
 
 //#define LIMITED_MAX_FR_EDITING        // Limit edit via M203 or LCD to DEFAULT_MAX_FEEDRATE * 2
 #if ENABLED(LIMITED_MAX_FR_EDITING)
@@ -1493,6 +1551,11 @@
 
 #if ENABLED(KNUTWURST_4MAXP)
   #define DEFAULT_MAX_ACCELERATION      { 700, 700, 70, 15000 }
+#endif
+
+#if defined(KNUTWURST_D1315)
+  // From D1315/output.log M201: X9000 Y9000 Z9000 E9000
+  #define DEFAULT_MAX_ACCELERATION      { 9000, 9000, 9000, 9000 }
 #endif
 
 
@@ -1557,6 +1620,13 @@
   #define DEFAULT_TRAVEL_ACCELERATION    700    // X, Y, Z acceleration for travel (non printing) moves
 #endif
 
+#if defined(KNUTWURST_D1315)
+  // From D1315/output.log M204: S3000 T3000
+  #define DEFAULT_ACCELERATION          3000
+  #define DEFAULT_RETRACT_ACCELERATION  3000
+  #define DEFAULT_TRAVEL_ACCELERATION   3000
+#endif
+
 /**
  * Default Jerk limits (mm/s)
  * Override with M205 X Y Z . . . E
@@ -1587,6 +1657,11 @@
     #define DEFAULT_XJERK  8.2
     #define DEFAULT_YJERK  8.2
     #define DEFAULT_ZJERK  0.2
+  #elif defined(KNUTWURST_D1315)
+    // From D1315/output.log M205: X20 Z20 (delta uses same jerk all axes)
+    #define DEFAULT_XJERK 20.0
+    #define DEFAULT_YJERK 20.0
+    #define DEFAULT_ZJERK 20.0
   #endif
 
   // #define DEFAULT_IJERK  0.3
@@ -2176,6 +2251,21 @@
     #define INVERT_E6_DIR false
     #define INVERT_E7_DIR false
   #endif
+
+  #if defined(KNUTWURST_D1315)
+    // Delta printer — verify direction after first boot; adjust if any tower moves wrong way.
+    #define INVERT_X_DIR false
+    #define INVERT_Y_DIR false
+    #define INVERT_Z_DIR false
+    #define INVERT_E0_DIR false
+    #define INVERT_E1_DIR false
+    #define INVERT_E2_DIR false
+    #define INVERT_E3_DIR false
+    #define INVERT_E4_DIR false
+    #define INVERT_E5_DIR false
+    #define INVERT_E6_DIR false
+    #define INVERT_E7_DIR false
+  #endif
 #endif // if DISABLED(KNUTWURST_TMC)
 
 #if ENABLED(KNUTWURST_TMC)
@@ -2317,9 +2407,15 @@
 
 // Direction of endstops when homing; 1=MAX, -1=MIN
 // :[-1,1]
-#define X_HOME_DIR -1
-#define Y_HOME_DIR -1
-#define Z_HOME_DIR -1
+#if defined(KNUTWURST_D1315)
+  #define X_HOME_DIR  1  // Delta homes to MAX (up)
+  #define Y_HOME_DIR  1
+  #define Z_HOME_DIR  1
+#else
+  #define X_HOME_DIR -1
+  #define Y_HOME_DIR -1
+  #define Z_HOME_DIR -1
+#endif
 //#define I_HOME_DIR -1
 //#define J_HOME_DIR -1
 //#define K_HOME_DIR -1
@@ -2402,6 +2498,16 @@
   #define Z_MAX_POS 205
   #define X_MAX_POS X_BED_SIZE
   #define Y_MAX_POS Y_BED_SIZE
+#endif
+
+#if defined(KNUTWURST_D1315)
+  // Delta: center is (0,0). Marlin derives BED_CENTER_AT_0_0 automatically for IS_KINEMATIC.
+  #define X_MIN_POS -(DELTA_PRINTABLE_RADIUS)
+  #define Y_MIN_POS -(DELTA_PRINTABLE_RADIUS)
+  #define Z_MIN_POS 0
+  #define X_MAX_POS  (DELTA_PRINTABLE_RADIUS)
+  #define Y_MAX_POS  (DELTA_PRINTABLE_RADIUS)
+  #define Z_MAX_POS  DELTA_HEIGHT
 #endif
 
 // #define I_MIN_POS 0
@@ -2584,7 +2690,7 @@
   // #define MESH_BED_LEVELING
 #endif
 
-#if NONE(KNUTWURST_BLTOUCH, KNUTWURST_CHIRON)
+#if NONE(KNUTWURST_BLTOUCH, KNUTWURST_CHIRON) && !defined(KNUTWURST_D1315)
   // #define AUTO_BED_LEVELING_3POINT
   // #define AUTO_BED_LEVELING_LINEAR
   // #define AUTO_BED_LEVELING_BILINEAR
@@ -2832,6 +2938,8 @@
   #define HOMING_FEEDRATE_MM_M { (30 * 60), (30 * 60), (6 * 60) }
 #elif ANY(KNUTWURST_4MAXP2, KNUTWURST_4MAXP)
   #define HOMING_FEEDRATE_MM_M { (40 * 60), (40 * 60), (4 * 60) }
+#elif defined(KNUTWURST_D1315)
+  #define HOMING_FEEDRATE_MM_M { (50 * 60), (50 * 60), (50 * 60) }  // Delta: all towers same speed
 #endif
 
 
