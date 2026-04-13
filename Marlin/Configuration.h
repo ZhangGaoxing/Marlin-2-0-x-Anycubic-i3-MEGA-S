@@ -493,14 +493,20 @@
  * Enable and connect the power supply to the PS_ON_PIN.
  * Specify whether the power supply is active HIGH or active LOW.
  */
-//#define PSU_CONTROL
+#if ANY(KNUTWURST_4MAXP2, KNUTWURST_4MAXP)
+  #define PSU_CONTROL               // Anycubic 4Max Pro requires PSU control via PS_ON pin
+#endif
 //#define PSU_NAME "Power Supply"
 
 #if ENABLED(PSU_CONTROL)
   //#define MKS_PWC                 // Using the MKS PWC add-on
   //#define PS_OFF_CONFIRM          // Confirm dialog when power off
   //#define PS_OFF_SOUND            // Beep 1s when power off
-  #define PSU_ACTIVE_STATE LOW      // Set 'LOW' for ATX, 'HIGH' for X-Box
+  #if ANY(KNUTWURST_4MAXP2, KNUTWURST_4MAXP)
+    #define PSU_ACTIVE_STATE HIGH   // Anycubic 4Max Pro uses active HIGH PSU (not ATX)
+  #else
+    #define PSU_ACTIVE_STATE LOW    // Set 'LOW' for ATX, 'HIGH' for X-Box
+  #endif
 
   //#define PSU_DEFAULT_OFF               // Keep power off until enabled directly with M80
   //#define PSU_POWERUP_DELAY      250    // (ms) Delay for the PSU to warm up to full power
@@ -3413,7 +3419,7 @@
 //
 // Short 2KHz beep when endstops are hit
 //
-// #define ENDSTOP_BEEP
+#define ENDSTOP_BEEP
 
 //
 // The duration and frequency for the UI feedback sound.
