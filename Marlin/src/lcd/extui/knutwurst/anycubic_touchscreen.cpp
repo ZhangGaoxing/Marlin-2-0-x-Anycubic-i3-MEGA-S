@@ -81,6 +81,12 @@ AnycubicMediaPauseState AnycubicTouchscreenClass::mediaPauseState    = AMPAUSEST
 uint32_t AnycubicTouchscreenClass::time_last_cyclic_tft_command = 0;
 uint8_t AnycubicTouchscreenClass::delayed_tft_command = 0;
 
+  #if ENABLED(FILAMENT_RUNOUT_SENSOR)
+  static bool filament_runout_triggered() {
+    return ExtUI::getFilamentRunoutEnabled() && READ(FIL_RUNOUT1_PIN) == FIL_RUNOUT1_STATE;
+  }
+  #endif
+
   #if ENABLED(POWER_OUTAGE_TEST)
 int           PowerInt                     = 6;
 unsigned char PowerTestFlag                = false;
@@ -129,7 +135,11 @@ void AnycubicTouchscreenClass::Setup() {
   FlowMenu                       = false;
   BLTouchMenu                    = false;
   LevelMenu                      = false;
+  #if ENABLED(CASE_LIGHT_ENABLE)
+  CaseLight                      = CASE_LIGHT_DEFAULT_ON;
+  #else
   CaseLight                      = false;
+  #endif
   currentFlowRate                = 100;
   flowRateBuffer                 = SM_FLOW_DISP_L;
   live_Zoffset                   = 0.0;
@@ -634,7 +644,7 @@ inline void AnycubicTouchscreenClass::StopPrint() {
 void AnycubicTouchscreenClass::ResumePrint() {
   #if ENABLED(SDSUPPORT)
     #if ENABLED(FILAMENT_RUNOUT_SENSOR)
-  if (READ(FIL_RUNOUT_PIN)) {
+  if (filament_runout_triggered()) {
       #if ENABLED(ANYCUBIC_TFT_DEBUG)
     SERIAL_ECHOLNPGM("TFT Serial Debug: Resume Print with filament sensor still tripped... ");
       #endif
@@ -715,7 +725,7 @@ void AnycubicTouchscreenClass::HandleSpecialMenu() {
                      "S660 P250\nM300 S880 P300"));
     #endif
 
-    #if ENABLED(KNUTWURST_4MAXP2)
+    #if ANY(KNUTWURST_4MAXP2, KNUTWURST_4MAXP)
     injectCommands(F("G28\nG90\nG1 Z20\nG1 X105 Y135 F4000\nG1 Z5\nM106 "
                      "S172\nG4 P500\nM303 E0 S215 C15 U1\nG4 "
                      "P500\nM107\nG28\nG1 Z10\nM84\nM500\nM300 S440 P200\nM300 "
@@ -820,7 +830,7 @@ void AnycubicTouchscreenClass::HandleSpecialMenu() {
     #endif
 
   else if ((strcasestr_P(currentTouchscreenSelection, PSTR(SM_PAUSE_L)) != NULL) ||
-           (strcasestr_P(currentTouchscreenSelection, PSTR(SM_PAUSE_L)) != NULL)) {
+           (strcasestr_P(currentTouchscreenSelection, PSTR(SM_PAUSE_S)) != NULL)) {
     SERIAL_ECHOLNPGM("Special Menu: Fil. Change Pause");
     injectCommands(F("M600"));
   } else if ((strcasestr_P(currentTouchscreenSelection, PSTR(SM_RESUME_L)) != NULL) ||
@@ -944,7 +954,7 @@ void AnycubicTouchscreenClass::HandleSpecialMenu() {
     injectCommands(F("G90\nG1 Z5\nG1 X385 Y15 F4000\nG1 Z0"));
     #endif
 
-    #if ENABLED(KNUTWURST_4MAXP2)
+    #if ANY(KNUTWURST_4MAXP2, KNUTWURST_4MAXP)
     injectCommands(F("G90\nG1 Z5\nG1 X255 Y15 F4000\nG1 Z0"));
     #endif
   } else if ((strcasestr_P(currentTouchscreenSelection, PSTR(SM_EZLVL_P3_L)) != NULL) ||
@@ -962,7 +972,7 @@ void AnycubicTouchscreenClass::HandleSpecialMenu() {
     injectCommands(F("G90\nG1 Z5\nG1 X395 Y395 F4000\nG1 Z0"));
     #endif
 
-    #if ENABLED(KNUTWURST_4MAXP2)
+    #if ANY(KNUTWURST_4MAXP2, KNUTWURST_4MAXP)
     injectCommands(F("G90\nG1 Z5\nG1 X255 Y195 F4000\nG1 Z0"));
     #endif
   } else if ((strcasestr_P(currentTouchscreenSelection, PSTR(SM_EZLVL_P4_L)) != NULL) ||
@@ -980,7 +990,7 @@ void AnycubicTouchscreenClass::HandleSpecialMenu() {
     injectCommands(F("G90\nG1 Z5\nG1 X15 Y395 F4000\nG1 Z0"));
     #endif
 
-    #if ENABLED(KNUTWURST_4MAXP2)
+    #if ANY(KNUTWURST_4MAXP2, KNUTWURST_4MAXP)
     injectCommands(F("G90\nG1 Z5\nG1 X15 Y195 F4000\nG1 Z0"));
     #endif
   } else if ((strcasestr_P(currentTouchscreenSelection, PSTR(SM_EZLVL_EXIT_L)) != NULL) ||
@@ -1385,10 +1395,9 @@ void AnycubicTouchscreenClass::FilamentRunout() {
 
 void AnycubicTouchscreenClass::DoFilamentRunoutCheck() {
   #if ENABLED(FILAMENT_RUNOUT_SENSOR)
-  // NOTE: getFilamentRunoutState() only returns the runout state if the job is
-  // printing we want to actually check the status of the pin here, regardless
-  // of printstate
-  if (READ(FIL_RUNOUT_PIN)) {
+  // Check the configured sensor state directly so the TFT honors M412 and the
+  // active-high / active-low runout polarity used by the selected machine.
+  if (filament_runout_triggered()) {
     if (mediaPrintingState == AMPRINTSTATE_PRINTING || mediaPrintingState == AMPRINTSTATE_PAUSED ||
         mediaPrintingState == AMPRINTSTATE_PAUSE_REQUESTED) {
       // play tone to indicate filament is out
@@ -2346,18 +2355,16 @@ void AnycubicTouchscreenClass::GetCommandFromTFT() {
               }
               break;
 
+  #endif
+  #if ANY(KNUTWURST_4MAXP2, KNUTWURST_4MAXP)
+    #if ENABLED(CASE_LIGHT_ENABLE)
             case 42:
-              if (CaseLight == true) {
-                SERIAL_ECHOLNPGM("Case Light OFF");
-                injectCommands(F("M355 S1 P0"));
-                CaseLight = false;
-              } else {
-                SERIAL_ECHOLNPGM("Case Light ON");
-                injectCommands(F("M355 S1 P255"));
-                CaseLight = true;
-              }
+              CaseLight = !getCaseLightState();
+              setCaseLightState(CaseLight);
+              if (CaseLight) SERIAL_ECHOLNPGM("Case Light ON");
+              else SERIAL_ECHOLNPGM("Case Light OFF");
               break;
-
+    #endif
   #endif
   #if ENABLED(KNUTWURST_DGUS2_TFT)
             case 50:

@@ -232,16 +232,86 @@ pio run -e 4MAXP -t upload
 
 ## 刷写后必做操作
 
+### 首次刷写（或 EEPROM 结构发生变化时）
+
 通过串口工具（波特率 **250000**，推荐 Pronterface 或 OctoPrint）或打印机屏幕终端连接后，依次发送：
 
 ```gcode
-M502    ; 重置所有参数为固件默认值（必须执行，清除旧 EEPROM 数据）
+M502    ; 重置所有参数为固件默认值（清除旧 EEPROM 数据）
 M500    ; 保存到 EEPROM
 ```
 
-**完成后断电重启**（不能只点软件重启）。
+**完成后断电重启**。
 
-> ⚠️ 跳过此步骤可能导致旧 EEPROM 数据覆盖新固件参数，出现异常运动或温度读数错误。
+> ⚠️ `M502` 会清除 EEPROM 中 **所有** 校准数据（PID、网格调平、步进值等）。只在首次刷机或遇到 EEPROM 版本不兼容时执行。
+
+---
+
+### 后续更新固件（已完成过校准，不想重新校准）
+
+**刷机前**，先保存当前校准数据：
+
+```gcode
+M503    ; 列出所有当前参数（将输出内容复制保存备用）
+```
+
+刷机完成后，**不要执行** `M502`，直接验证 EEPROM 是否完整：
+
+```gcode
+M503    ; 查看参数是否保留
+```
+
+若 `M503` 输出的 PID、网格调平、步进值与刷机前一致，说明 EEPROM 完整保留，无需任何操作。
+
+若 Marlin 检测到 EEPROM 版本变化（串口会输出 `EEPROM version mismatch` 警告），则需要重新校准，或从 `M503` 的备份数据手动恢复：
+
+```gcode
+; --- 1. 恢复出厂设置 ---
+M502
+
+; --- 2. 导入热端与热床 PID 参数 ---
+M301 P23.60 I1.62 D86.02    ; 热端 PID
+M304 P229.13 I44.40 D788.36 ; 热床 PID
+
+; --- 3. 导入 5x5 网床调平数据 ---
+G29 S3 I0 J0 Z-0.15000
+G29 S3 I1 J0 Z0.05000
+G29 S3 I2 J0 Z0.19000
+G29 S3 I3 J0 Z0.28000
+G29 S3 I4 J0 Z0.32000
+G29 S3 I0 J1 Z-0.13000
+G29 S3 I1 J1 Z0.03000
+G29 S3 I2 J1 Z0.14000
+G29 S3 I3 J1 Z0.20000
+G29 S3 I4 J1 Z0.26000
+G29 S3 I0 J2 Z-0.10000
+G29 S3 I1 J2 Z0.00000
+G29 S3 I2 J2 Z0.08000
+G29 S3 I3 J2 Z0.10000
+G29 S3 I4 J2 Z0.15000
+G29 S3 I0 J3 Z-0.08000
+G29 S3 I1 J3 Z-0.01000
+G29 S3 I2 J3 Z0.05000
+G29 S3 I3 J3 Z0.07000
+G29 S3 I4 J3 Z0.05000
+G29 S3 I0 J4 Z-0.05000
+G29 S3 I1 J4 Z0.02000
+G29 S3 I2 J4 Z0.07000
+G29 S3 I3 J4 Z0.06000
+G29 S3 I4 J4 Z0.04000
+
+; --- 3. K 值校准 ---
+M900 K0.15
+
+; --- 4. 保存到 EEPROM (必须执行，否则重启失效) ---
+M500
+
+; --- 5. 启用调平并检查状态 ---
+M420 S1
+M420 V
+```
+
+**完成后断电重启**。
 
 ---
 
@@ -298,33 +368,126 @@ M420 V    ; 查看当前网格数据
 
 ### 4. Linear Advance K 值校准（推荐）
 
-使用 [K-factor 校准工具](https://marlinfw.org/tools/lin_advance/k-factor.html) 生成测试 G-code。
+#### 固件配置确认
 
-**工具参数填写：**
+本固件已在 `Configuration_adv.h` 中启用 Linear Advance 1.5，初始 K 值为 `0.0`（等效关闭）：
+
+```c
+#define LIN_ADVANCE
+#define ADVANCE_K 0.0
+```
+
+**注意**：起始 G-code 中的 `M900 K0.2` 是启动时临时写入的 K 值，每次打印前都会执行，无需修改固件。
+
+---
+
+#### 使用在线工具生成校准 G-code
+
+访问 [https://marlinfw.org/tools/lin_advance/k-factor.html](https://marlinfw.org/tools/lin_advance/k-factor.html)，按以下参数填写：
+
+**Printer Info（打印机信息）**
+
+| 参数 | 4Max Pro（原版）| 说明 |
+|---|---|---|
+| Filament Diameter | `1.75` | 耗材直径 |
+| Nozzle Diameter | `0.4` | 标准喷嘴 |
+| Nozzle Temperature | `205` | PLA 推荐温度 |
+| Bed Temperature | `60` | 热床温度 |
+| Retraction Distance | `1.0` | 回抽距离（mm）|
+| Layer Height | `0.2` | 层高（mm）|
+| Fan Speed | `100` | 风扇百分比 |
+
+**Print Bed（打印床）**
 
 | 参数 | 值 |
 |---|---|
-| Printer type | Cartesian |
-| Bed size X/Y | 270 / 205 |
-| Nozzle diameter | 0.4 mm |
-| Filament diameter | 1.75 mm |
-| Start K / End K / Step | 0 / 1.0 / 0.05 |
+| Bed Shape | `Rectangular` |
+| Bed Size X | `270` |
+| Bed Size Y | `205` |
+| Origin Bed Center | 不勾选 |
 
-打印后找到直线段**宽度最均匀、拐角无溢料无缩料**的行，读取对应 K 值并应用：
+**Speed（速度）**
+
+| 参数 | 值 | 说明 |
+|---|---|---|
+| Use Mm/S | 勾选 | 使用 mm/s 单位 |
+| Slow Printing Speed | `20` | 慢速段（蓝色线）|
+| Fast Printing Speed | `70` | 快速段（红色线），需与慢速差异显著 |
+| Movement Speed | `120` | 移动速度 |
+| Retract Speed | `35` | 回抽速度 |
+| Unretract Speed | `35` | 送丝速度 |
+| Acceleration | `700` | 对应固件 `DEFAULT_ACCELERATION` |
+| Jerk X/Y | `-1` | 使用固件默认值（8.2 mm/s）|
+
+**Pattern（测试图案）**
+
+| 参数 | 值 | 说明 |
+|---|---|---|
+| Lin Advance Version | `1.5` | Marlin 1.1.9 / 2.0 及以上使用 1.5 |
+| Pattern Type | `Standard` | 标准图案 |
+| Starting Value For K | `0` | K 值起始 |
+| Ending Value For K | `1.0` | K 值终止（PLA 通常不超过 0.5）|
+| K-Factor Stepping | `0.05` | 每行增量（0 到 1.0，共 20 行）|
+| Slow Speed Length | `20` | 慢速段长度（mm）|
+| Fast Speed Length | `40` | 快速段长度（mm）|
+| Test Line Spacing | `5` | 行间距（mm）|
+| Print Anchor Frame | 勾选 | 增强首尾附着力 |
+| Line Numbering | 勾选 | 在每两行旁打印 K 值标注 |
+
+**Advanced（高级）**
+
+| 参数 | 值 |
+|---|---|
+| Use Bed Leveling | `No`（若已有网格数据可选 `Yes`）|
+| Prime Nozzle | 勾选 |
+
+点击 **Generate G-code** → **Save** 下载 `.gcode` 文件。
+
+---
+
+#### 打印与读取结果
+
+1. 将生成的 G-code 文件复制到 SD 卡，打印
+2. 观察测试图案：
+   - **蓝色线**（慢速段）为参考基准
+   - **红色线**（快速段）的端点是观察目标
+   - 找到快速段**宽度与慢速段最接近**、拐角处**无溢料（bulge）也无缩料（gap）**的行
+3. 读取该行旁边的 K 值标注（若启用了 Line Numbering），或通过行号推算：
+
+$$K = K_{start} + \text{行号} \times K_{step}$$
+
+---
+
+#### 应用 K 值
+
+通过串口或打印机屏幕终端发送：
 
 ```gcode
-M900 K0.2   ; 替换为实际校准值
-M500
+M900 K0.2   ; 替换 0.2 为实测最佳 K 值
+M500        ; 保存到 EEPROM
 ```
 
-**各材料参考 K 值范围：**
+永久保存后，起始 G-code 中的 `M900 K0.2` 也应更新为相同值，以保持一致：
 
-| 耗材 | K 值范围 |
-|---|---|
-| PLA | 0.1 ~ 0.3 |
-| PETG | 0.2 ~ 0.5 |
-| ABS | 0.1 ~ 0.3 |
-| TPU | 0（建议关闭）|
+```gcode
+M900 K<实测值>   ; Linear Advance K 值（已替换为实际校准结果）
+```
+
+---
+
+#### 各材料参考 K 值范围
+
+| 耗材 | K 值范围 | 备注 |
+|---|---|---|
+| PLA | 0.1 ~ 0.3 | 直接驱动常见值约 0.1–0.2 |
+| PETG | 0.2 ~ 0.5 | 流动性好，K 值偏高 |
+| ABS | 0.1 ~ 0.3 | 与 PLA 相近 |
+| TPU | 0 | 建议关闭（`M900 K0`），柔性耗材不适用 |
+
+> ⚠️ **注意事项**：
+> - 换用不同品牌/颜色耗材、更换喷嘴尺寸、更改打印温度后，需重新校准
+> - 切片软件中的 **Coasting（滑行）** 与 Linear Advance 功能冲突，两者只能选一，Cura 中应禁用 Coasting
+> - K 值对直接驱动（Direct Drive）通常在 0 ~ 0.5；如改为鲍登管（Bowden）挤出则需大幅提高
 
 ### 5. Z 轴偏移微调
 
@@ -575,6 +738,28 @@ M500
 - **挤出机步进校准**（如果流量有明显变化）
 - **Linear Advance K 值校准**（不同材质差异较大）
 - **PID 校准**（如果打印温度差距大于 30°C）
+
+### Q: 打印温度始终是 170°C，无论什么模型都一样
+
+这是 **Cura 材料配置**问题，与固件无关。固件中 `EXTRUDE_MINTEMP 170` 是挤出最低安全温度（低于此值不允许挤出），不是目标打印温度。
+
+解决方法（Cura）：
+
+1. 点击顶部材料选择器（如 **Generic PLA**）→ **管理材料**
+2. 找到当前使用的材料，点击编辑
+3. 将 **打印温度（Printing Temperature）** 从 170°C 修改为正确值（PLA 通常 190–210°C）
+4. 保存后重新切片
+
+若问题仍存在，检查 Cura 的 **机器设置 → 起始 G-code**，确认其中没有硬编码 `M109 S170` 之类的温度命令。
+
+---
+
+### Q: 刷入新固件后如何保留已完成的 PID 和网格调平数据
+
+Marlin 的校准数据存储在 EEPROM 中。只要不执行 `M502`，数据通常可以保留。  
+**刷机前务必执行 `M503` 备份输出内容**，详细操作请参阅[刷写后必做操作](#刷写后必做操作)。
+
+---
 
 ### Q: 如何恢复原厂固件
 

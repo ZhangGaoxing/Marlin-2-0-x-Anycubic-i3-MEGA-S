@@ -116,6 +116,7 @@
 #if ENABLED(ANYCUBIC_4_MAX_PRO_ENDSTOPS)
   #define X_MAX_PIN                           43  // AUX (2)
   #define Y_STOP_PIN                          19  // Z+
+  #define FIL_RUNOUT_PIN                      33  // EXP2_05 / EN2
 
   #define CONTROLLER_FAN_PIN            FAN1_PIN // PATCH: knutwurst
 #elif ANY(TRIGORILLA_MAPPING_CHIRON, TRIGORILLA_MAPPING_I3MEGA)
@@ -139,7 +140,7 @@
     #define OUTAGECON_PIN                     58
   #endif
 
-  #if ANY(KNUTWURST_CHIRON, KNUTWURST_4MAXP2)
+  #if ANY(KNUTWURST_CHIRON, KNUTWURST_4MAXP2, KNUTWURST_4MAXP)
     #define FIL_RUNOUT_PIN 33
   #else
     #define FIL_RUNOUT_PIN 19

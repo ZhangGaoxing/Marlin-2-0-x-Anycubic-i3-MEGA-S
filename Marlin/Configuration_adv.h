@@ -732,7 +732,7 @@
  * @section caselight
  * M355 Case Light on-off / brightness
  */
-#if ENABLED(KNUTWURST_4MAXP2)
+#if ANY(KNUTWURST_4MAXP2, KNUTWURST_4MAXP)
   #define CASE_LIGHT_ENABLE
 #endif
 

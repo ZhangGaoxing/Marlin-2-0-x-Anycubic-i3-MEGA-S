@@ -49,13 +49,14 @@
 | Jerk X/Y/Z（mm/s） | 20 / 20 / 20 | M205 |
 | 热端 PID（P/I/D） | 24.00 / 0.40 / 20.00 | M301 |
 | 热床 | 无 | — |
-| SD 卡 | 无 | — |
+| SD 卡 | 支持自动打印，`auto0.g`文件存入SD卡，打印完成自动删除 | — |
 | Delta 斜杆长度（mm） | 150.0 | 实测 |
-| Delta 半径（mm） | 67.0（Repetier rostockRadius = Marlin DELTA_RADIUS） | Repetier 配置 |
-| Delta 高度（mm） | 161.0（Repetier zhomepos）→ Marlin DELTA_HEIGHT **170.0** | 实机校准 |
-| 可打印半径（mm） | 67.0 | 计算值 |
+| Delta 半径（mm） | 75 | 实测 |
+| Delta 高度（mm） | 170，最大打印高度 151 | 实机校准 |
+| 可打印半径（mm） | 67.0 | 实测 |
 | 限位开关位置 | 顶部（MAX），接在 RAMPS MIN 接口 | 实测 |
 | 限位开关类型 | NC（常闭），上拉，触发时为 HIGH | 实测 |
+| D1 指示灯 | 空闲或温度小于55度灭，打印或温度大于等于55度亮 | — |
 
 ---
 
