@@ -518,18 +518,30 @@
   //#define PSU_POWERUP_GCODE  "M355 S1"  // G-code to run after power-on (e.g., case light on)
   //#define PSU_POWEROFF_GCODE "M355 S0"  // G-code to run before power-off (e.g., case light off)
 
-  //#define AUTO_POWER_CONTROL      // Enable automatic control of the PS_ON pin
+  #if ANY(KNUTWURST_4MAXP2, KNUTWURST_4MAXP)
+    #define AUTO_POWER_CONTROL      // Enable automatic control of the PS_ON pin for idle shutdown
+  #else
+    //#define AUTO_POWER_CONTROL    // Enable automatic control of the PS_ON pin
+  #endif
   #if ENABLED(AUTO_POWER_CONTROL)
     #define AUTO_POWER_FANS           // Turn on PSU for fans
     #define AUTO_POWER_E_FANS         // Turn on PSU for E Fans
     #define AUTO_POWER_CONTROLLERFAN  // Turn on PSU for Controller Fan
     #define AUTO_POWER_CHAMBER_FAN    // Turn on PSU for Chamber Fan
     #define AUTO_POWER_COOLER_FAN     // Turn on PSU for Cooler Fan
-    #define POWER_TIMEOUT              30 // (s) Turn off power if the machine is idle for this duration
+    #if ANY(KNUTWURST_4MAXP2, KNUTWURST_4MAXP)
+      #define POWER_TIMEOUT           300 // (s) Turn off power after 5 minutes of idle time
+    #else
+      #define POWER_TIMEOUT            30 // (s) Turn off power if the machine is idle for this duration
+    #endif
     //#define POWER_OFF_DELAY          60 // (s) Delay of poweroff after M81 command. Useful to let fans run for extra time.
   #endif
   #if EITHER(AUTO_POWER_CONTROL, POWER_OFF_WAIT_FOR_COOLDOWN)
-    //#define AUTO_POWER_E_TEMP        50 // (°C) PSU on if any extruder is over this temperature
+    #if ANY(KNUTWURST_4MAXP2, KNUTWURST_4MAXP)
+      #define AUTO_POWER_E_TEMP       50 // (°C) Keep PSU on until the hotend cools below 50C
+    #else
+      //#define AUTO_POWER_E_TEMP      50 // (°C) PSU on if any extruder is over this temperature
+    #endif
     //#define AUTO_POWER_CHAMBER_TEMP  30 // (°C) PSU on if the chamber is over this temperature
     //#define AUTO_POWER_COOLER_TEMP   26 // (°C) PSU on if the cooler is over this temperature
   #endif

@@ -2359,10 +2359,33 @@ void AnycubicTouchscreenClass::GetCommandFromTFT() {
   #if ANY(KNUTWURST_4MAXP2, KNUTWURST_4MAXP)
     #if ENABLED(CASE_LIGHT_ENABLE)
             case 42:
-              CaseLight = !getCaseLightState();
-              setCaseLightState(CaseLight);
-              if (CaseLight) SERIAL_ECHOLNPGM("Case Light ON");
-              else SERIAL_ECHOLNPGM("Case Light OFF");
+              #if CASELIGHT_USES_BRIGHTNESS
+                if (!getCaseLightState()) {
+                  setCaseLightBrightness_percent(33);
+                  setCaseLightState(true);
+                  SERIAL_ECHOLNPGM("Case Light LOW");
+                }
+                else {
+                  const float brightness = getCaseLightBrightness_percent();
+                  if (brightness < 50) {
+                    setCaseLightBrightness_percent(66);
+                    SERIAL_ECHOLNPGM("Case Light MEDIUM");
+                  }
+                  else if (brightness < 83) {
+                    setCaseLightBrightness_percent(100);
+                    SERIAL_ECHOLNPGM("Case Light HIGH");
+                  }
+                  else {
+                    setCaseLightState(false);
+                    SERIAL_ECHOLNPGM("Case Light OFF");
+                  }
+                }
+              #else
+                CaseLight = !getCaseLightState();
+                setCaseLightState(CaseLight);
+                if (CaseLight) SERIAL_ECHOLNPGM("Case Light ON");
+                else SERIAL_ECHOLNPGM("Case Light OFF");
+              #endif
               break;
     #endif
   #endif
